@@ -1,0 +1,19 @@
+Package: BSgenome.Pfalciparum3D7.PlasmoDB.3D7v3
+Title: Genome sequences for Plasmodium falciparum isolate 3D7 (PlasmoDB version 12.0)
+Description: Full genome sequences for Plasmodium falciparum strain 3D7 (NCBI Taxonomy ID: 36329) as provided by PlasmoDB.org (version=2013-03-01), chromosome sequence names unchanged (Pf3D7_01_v3 to Pf3D7_14_v3, PFC10_API_IRAB, M76611), then stored in Biostrings objects.
+Version: 0.1-1
+License: Artistic-2.0
+Author: Jocelyn Sietsma Penington
+Maintainer: Jocelyn Sietsma Penington <penington.j@wehi.edu.au>
+organism: Plasmodium falciparum 3D7
+common_name: P. falciparum
+provider: GeneDB via PlasmoDB
+provider_version: Pf3D7v3
+release_date: 2014-09-16
+release_name: release-12.0
+source_url: http://plasmodb.org/common/downloads/release-12.0/Pfalciparum3D7/fasta/data/
+organism_biocview: Plasmodium_falciparum_3D7
+BSgenomeObjname: Pfalciparum3D7
+circ_seqs: "PFC10_API_IRAB"
+seqs_srcdir: /wehisan/bioinf/bioinf-data/Papenfuss_lab/projects/malaria/vaccine/genomes
+seqfile_name: PlasmoDB-12.0_Pfalciparum3D7_Genome.2bit
