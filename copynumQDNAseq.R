@@ -43,9 +43,8 @@ if (file.exists(file.path(refDir, paste0("PfBins", bin_in_kbases, "kb.rds")))) {
                                         chrPrefix='')
   ## Use a blacklist BEDfile to mask telomeres and centromeres. 
     pfBins$blacklist <- calculateBlacklist(pfBins, 
-                                             bedFiles= file.path(
-                                               "/wehisan/bioinf/bioinf-data/Papenfuss_lab/projects",
-                                               "reference_genomes/plasmodium/", 
+                                             bedFiles= file.path(refDir,
+                                               "..", 
                                                '12.0/CentromereTelomereRegions.bed') )
     pfBins <- AnnotatedDataFrame(pfBins,
                                  varMetadata=data.frame(labelDescription=c(
