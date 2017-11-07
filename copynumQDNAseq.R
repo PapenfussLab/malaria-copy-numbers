@@ -3,17 +3,22 @@
 ## for the parent and resistant clones, then uses functions from 
 ## QDNAseq to calculate read depths and copynumbers.
 ## A 'mappability file' is required for correcting the counts
-## Copied from maldrugR to maldrugGilsonR Sep 2017 and modified for new data
+
 ## Jocelyn Sietsma Penington  
 ## 
 ## Current version of QDNAseq is 1.10.0
+
+## Modifying for github to make slightly less specific, 
+## and include plot function not used with latest. 7 Nov 2017
 
 library("BSgenome")
 library("QDNAseq")
 library("Biobase")
 
-source("Gilsonfile_paths.R")
-alignDir <- file.path(DirGil, "alignment")
+source("file_paths.R")
+# defines currDir, refDir, cnDir 
+
+alignDir <- file.path(currDir, "alignment")
 
 ## For first use of new version of reference genome, need to forge the genome data package:
 # library(devtools)
@@ -43,9 +48,7 @@ if (file.exists(file.path(refDir, paste0("PfBins", bin_in_kbases, "kb.rds")))) {
                                         chrPrefix='')
   ## Use a blacklist BEDfile to mask telomeres and centromeres. 
     pfBins$blacklist <- calculateBlacklist(pfBins, 
-                                             bedFiles= file.path(
-                                               "/wehisan/bioinf/bioinf-data/Papenfuss_lab/projects",
-                                               "reference_genomes/plasmodium/", 
+                                             bedFiles= file.path(refDir, "..",
                                                '12.0/CentromereTelomereRegions.bed') )
     pfBins <- AnnotatedDataFrame(pfBins,
                                  varMetadata=data.frame(labelDescription=c(
@@ -63,20 +66,15 @@ if (file.exists(file.path(refDir, paste0("PfBins", bin_in_kbases, "kb.rds")))) {
 ### Binned counts for samples
 ## If bin counts calculated previously, read saved data.
 ## Otherwise, using the bins above, calculate read depths from files
-## These are the file names for Gilson samples, by clonal sets:-
+## Example file names for samples, by clonal sets:-
 parentbam <- '3D7-merge-B2_S1-F4_S4.bam'
 parentname <- 'mergedS1toS4'
-# strain <- 'A'
-# sampleL <- c('S5', 'S5v2', 'S6')
-# strain <- 'B'
-# sampleL <- paste0('S', as.character(c(7:10)))
-# strain <- 'D'
-# sampleL <- paste0('S', as.character(c(11:14)))
+
 strain <- 'E'
 sampleL <- paste0('S', as.character(c(15:18)))
 
 strainbamL <- paste0(strain, '_', sampleL, '_nodup.bam')
-bamnameL <- c('ParentsS1toS4', sampleL)
+bamnameL <- c(parentname, sampleL)
 
 countfilen <- paste0("Counts", bin_in_kbases, "k_", parentname, "_Strain", strain, ".rds")
 if (file.exists(
@@ -139,11 +137,11 @@ convertQDNAtoDF <- function(qobject) {
 scaled_df <- convertQDNAtoDF(StrainScaledByParents)
 saveRDS(scaled_df, 
         file.path(cnDir, paste0("CN_filt_correct_norm_compare_df_", bin_in_kbases, 
-                                "k_Gilson.",strain, ".rds"))) 
+                                strain, ".rds"))) 
 
 #################################################################################
-
 ### Making plots with ggplot ###
+
 pdf.options(useDingbats=FALSE)  
 ## This should remove need for 'useDingbats=FALSE' in individual ggsave commands.
 # Alternative solution is to edit fonts used by Illustrator
@@ -151,7 +149,7 @@ library(ggplot2)
 theme_set(theme_bw())
 library(gridExtra)  # to arrange the 14 chromosomes in 2 rows
 library(scales)     # Need the scales package for log2 transform
-require(reshape2)      # for melt
+require(reshape2)   # for melt
 
 plotDir <- cnDir  ## option to change for final version
 
@@ -217,7 +215,7 @@ plotWholeCN <- function(bin_df, bin_size){
   bin_df <- na.omit(subset(bin_df, !(bin_df$chrom %in% nonNuc)))
   bin_df <- reshape2::melt(bin_df, id.vars = c("chrom", "range", "start", "end"),
                            variable.name = "sample", value.name = "copynum")
-  bin_df$sample <-  sub("vs. ParentsS1toS4", "",bin_df$sample)
+  bin_df$sample <-  sub(relativeText, "", bin_df$sample)
   bin_df$pos <- paste(bin_df$chrom, bin_df$start, sep=":")
   chromlist <- unique(bin_df$chrom)
   # counting on all chromosomes having a value for copy number with start==100001, for x-axis labelling
@@ -232,16 +230,35 @@ plotWholeCN <- function(bin_df, bin_size){
     labs(title= paste(bin_size,"kb copy numbers"), x= "Chromosome", y="Relative copy numbers")
 }
 
+plotZoomedROI <- function(bin_df, chrom_2ch, startkb, endkb) {
+  bin_df$chrom <- gsub("Pf3D7_|_v3", "",bin_df$chrom) # shorten chromosome names
+  chromOI <- melt(bin_df[bin_df$chrom==chrom_2ch, ],
+                 id.vars = c("chrom", "range", "start", "end"), 
+                 variable.name = "sample", value.name = "copynum")
+  chromOI$sample <-  sub(relativeText, "", chromOI$sample)
+  roi <- na.omit(chromOI[which(chromOI$start > startkb*1000 & chromOI$end < endkb*1000), ])
+  ymax <- ceiling(max(roi$copynum)) 
+  ggplot(roi, aes(x = end/1000, y = copynum)) + geom_point(aes(color = sample)) + 
+    facet_grid(sample ~ ., scales = "free_y") + theme(legend.position = "none") + 
+    scale_colour_brewer(palette="Dark2") + 
+    scale_y_continuous(limits=c(0, ymax),
+                       breaks=seq(0, ymax, 2)) + 
+    labs( x= "Position in chromosome ",chrom_2ch," (kb)", y="Relative copy numbers")
+}
+
+#### end of plotting functions ####
+
 ### Load saved data frame from part 1 if needed ###
 ## If not in environment already, will need to define bin_in_kbases, strain and sampleL
 
 scaled_df <- readRDS(file.path(
   plotDir, paste0("CN_filt_correct_norm_compare_df_", bin_in_kbases, 
-                "k_Gilson.",strain, ".rds"))) 
+                strain, ".rds"))) 
+relativeText <- paste('vs.', bamnameL[1])  # or "vs. ParentsS1S2": column used for scaling
 
 ## Make and save a separate plot for each sample 
 for (samplen in sampleL) {
-  p <- plotScaledCounts(scaled_df, paste(samplen, 'vs.', bamnameL[1]), bin_in_kbases )
+  p <- plotScaledCounts(scaled_df, paste(samplen, relativeText), bin_in_kbases )
   plot(p)
   ggsave(filename = 
            file.path(plotDir, 
@@ -252,7 +269,7 @@ for (samplen in sampleL) {
 ## Make a plot for all the samples in a single column
 ## Option to fix values for ymax and ymin to give better comparisons
 plotset <- arrangeGrob(grobs = lapply(sampleL, function(samplen)
-  {plotLogRow(scaled_df, paste(samplen, 'vs.', bamnameL[1]), bin_in_kbases 
+  {plotLogRow(scaled_df, paste(samplen, relativeText), bin_in_kbases 
               , maxCN = 2^3, minCN = 2^-2
               )}),
   ncol = 1)
@@ -283,4 +300,9 @@ ggsave(filename = file.path(plotDir, paste0(strain, "_", bin_in_kbases, "k_CN_co
        , units = "mm", width = 160, height = 60
 )
 
+## Plot all samples in set zoomed in on Region of Interest
+# scaled_df[which(scaled_df$start==100001),] # checking that there is an x-axis-tick for each chromosome
+# panelplot <- plotZoomedROI(scaled_df, chrom_2ch ="04", startkb = 400, endkb = 500)
+# panelplot + labs(title=paste(bin_in_kbases, 
+#                              "kb copy numbers zoomed in on Chrom 4 region of interest"))
 
